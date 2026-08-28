@@ -1,16 +1,15 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
-import { User, Calendar, Sparkles, Shield, CheckCircle2 } from "lucide-react";
+import { useState, useRef } from "react";
+import { CheckCircle2, Camera, User, Upload } from "lucide-react";
 import { useAuthStore } from "@/store/useAuthStore";
 import { db } from "@/lib/firebase";
 import { doc, setDoc } from "firebase/firestore";
 import { calculateAge, calculateZodiac, MBTI_OPTIONS } from "@/lib/profileHelpers";
 
 export default function OnboardingPage() {
-  const router = useRouter();
   const { user } = useAuthStore();
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [displayName, setDisplayName] = useState(user?.displayName || "");
   const [photoURL, setPhotoURL] = useState(user?.photoURL || "");
@@ -34,6 +33,46 @@ export default function OnboardingPage() {
 
   const age = calculateAge(dob);
   const zodiac = calculateZodiac(dob);
+
+  // 處理相片選擇 / 拍攝與自動壓縮
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement("canvas");
+        const MAX_SIZE = 300;
+        let width = img.width;
+        let height = img.height;
+
+        if (width > height) {
+          if (width > MAX_SIZE) {
+            height *= MAX_SIZE / width;
+            width = MAX_SIZE;
+          }
+        } else {
+          if (height > MAX_SIZE) {
+            width *= MAX_SIZE / height;
+            height = MAX_SIZE;
+          }
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext("2d");
+        ctx?.drawImage(img, 0, 0, width, height);
+
+        // 壓縮為高品質 JPEG Data URL
+        const dataUrl = canvas.toDataURL("image/jpeg", 0.85);
+        setPhotoURL(dataUrl);
+      };
+      img.src = event.target?.result as string;
+    };
+    reader.readAsDataURL(file);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -65,11 +104,11 @@ export default function OnboardingPage() {
         { merge: true }
       );
 
-      router.push("/");
+      // 使用 window.location.href 重整導向首頁
+      window.location.href = "/";
     } catch (err) {
       console.error("保存個人資料失敗:", err);
       alert("設定失敗，請稍後再試。");
-    } finally {
       setIsSubmitting(false);
     }
   };
@@ -91,6 +130,42 @@ export default function OnboardingPage() {
 
         <form onSubmit={handleSubmit} className="space-y-4 text-xs">
           
+          {/* 頭像選擇/拍攝區塊 */}
+          <div className="flex flex-col items-center gap-2 pt-1">
+            <input
+              type="file"
+              accept="image/*"
+              ref={fileInputRef}
+              onChange={handleFileChange}
+              className="hidden"
+            />
+            
+            <div
+              onClick={() => fileInputRef.current?.click()}
+              className="relative w-24 h-24 rounded-full bg-background border-2 border-dashed border-border flex items-center justify-center overflow-hidden cursor-pointer hover:border-primary transition-colors group shadow-minimal"
+            >
+              {photoURL ? (
+                <img src={photoURL} alt="Avatar Preview" className="w-full h-full object-cover" />
+              ) : (
+                <User size={36} className="text-muted group-hover:text-primary transition-colors" />
+              )}
+
+              {/* 拍攝/選擇圖示 Overly */}
+              <div className="absolute inset-0 bg-primary/40 backdrop-blur-[2px] opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
+                <Camera size={22} className="text-surface" />
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              className="px-3 py-1.5 bg-background border border-border rounded-xl text-[11px] font-medium text-secondary hover:text-primary transition-colors flex items-center gap-1.5 shadow-minimal"
+            >
+              <Upload size={13} />
+              <span>拍攝或從相簿選擇頭像</span>
+            </button>
+          </div>
+
           {/* 用戶名 */}
           <div>
             <label className="font-bold text-primary block mb-1">用戶名稱 *</label>
@@ -100,18 +175,6 @@ export default function OnboardingPage() {
               onChange={(e) => setDisplayName(e.target.value)}
               required
               placeholder="例如：阿杰 / Alex"
-              className="w-full bg-background border border-border rounded-xl p-3 text-primary focus:outline-none focus:border-primary"
-            />
-          </div>
-
-          {/* 頭像連結 (Optional) */}
-          <div>
-            <label className="font-bold text-primary block mb-1">ICON 頭像網址 (選填)</label>
-            <input
-              type="url"
-              value={photoURL}
-              onChange={(e) => setPhotoURL(e.target.value)}
-              placeholder="貼上圖片連結或留空使用 Google 頭像"
               className="w-full bg-background border border-border rounded-xl p-3 text-primary focus:outline-none focus:border-primary"
             />
           </div>

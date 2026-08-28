@@ -11,7 +11,7 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuthStore();
   const [mounted, setMounted] = useState(false);
   const [checkingOnboarded, setCheckingOnboarded] = useState(true);
-  const [isOnboarded, setIsOnboarded] = useState(true);
+  const [isOnboarded, setIsOnboarded] = useState(false);
 
   const pathname = usePathname();
   const router = useRouter();
@@ -20,12 +20,16 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
     setMounted(true);
   }, []);
 
+  // 當使用者狀態或路徑變更時重新檢查 onboarded 狀態
   useEffect(() => {
     async function checkUserOnboarding() {
       if (!user) {
+        setIsOnboarded(false);
         setCheckingOnboarded(false);
         return;
       }
+
+      setCheckingOnboarded(true);
       try {
         const userDoc = await getDoc(doc(db, "users", user.uid));
         if (userDoc.exists() && userDoc.data().onboarded === true) {
@@ -45,14 +49,18 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
     } else {
       setCheckingOnboarded(false);
     }
-  }, [user]);
+  }, [user, pathname]);
 
-  // 重導邏輯
+  // 重導邏輯：防止狀態未同步時的無限重導
   useEffect(() => {
-    if (user && !checkingOnboarded && !isOnboarded && pathname !== "/onboarding") {
+    if (!mounted || loading || checkingOnboarded) return;
+
+    if (user && !isOnboarded && pathname !== "/onboarding") {
       router.push("/onboarding");
+    } else if (user && isOnboarded && pathname === "/onboarding") {
+      router.push("/");
     }
-  }, [user, checkingOnboarded, isOnboarded, pathname, router]);
+  }, [user, mounted, loading, checkingOnboarded, isOnboarded, pathname, router]);
 
   if (!mounted || loading || (user && checkingOnboarded)) {
     return (
