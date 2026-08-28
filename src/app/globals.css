@@ -1,0 +1,21 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  /* 設定全局預設字體與背景顏色 */
+  body {
+    @apply bg-background text-primary antialiased;
+    /* 隱藏手機端點擊時的預設高光，讓 PWA 體驗更像原生 App */
+    -webkit-tap-highlight-color: transparent;
+  }
+}
+
+/* 針對 PWA 隱藏滾動條但保留滾動功能的優化 (選用) */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;  /* IE and Edge */
+  scrollbar-width: none;  /* Firefox */
+}
