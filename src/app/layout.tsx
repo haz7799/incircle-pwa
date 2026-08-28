@@ -3,6 +3,7 @@ import { Inter } from "next/font/google";
 import "./globals.css";
 import BottomNav from "@/components/layout/BottomNav";
 import TopBar from "@/components/layout/TopBar";
+import AuthGuard from "@/components/auth/AuthGuard";
 
 // 使用系統預設無襯線字體，保持極簡
 const inter = Inter({ subsets: ["latin"] });
@@ -34,18 +35,14 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="zh-TW">
-      <body className={`${inter.className} bg-background text-primary antialiased`}>
-        <TopBar />
-        
-        {/* Main Container: 
-          使用 pt-14 (閃避 TopBar) 與 pb-24 (閃避 BottomNav)
-          max-w-md 確保在 Web 端也能維持 Mobile 般的窄版舒適閱讀體驗 
-        */}
-        <main className="pt-14 pb-24 min-h-screen max-w-md mx-auto px-4 mt-4">
-          {children}
-        </main>
-        
-        <BottomNav />
+      <body className="antialiased bg-background text-primary selection:bg-primary selection:text-surface">
+        <div className="mx-auto max-w-md min-h-screen bg-surface shadow-2xl relative overflow-x-hidden pb-16">
+          {/* 使用 AuthGuard 包裹所有內容 */}
+          <AuthGuard>
+            <main className="p-4">{children}</main>
+            <BottomNav />
+          </AuthGuard>
+        </div>
       </body>
     </html>
   );
