@@ -54,7 +54,7 @@ export default function ChatBox({ roomId }: { roomId: string }) {
     await addDoc(collection(db, "rooms", roomId, "chats"), {
       text: msgText,
       senderId: user.uid,
-      senderName: user.nickname,
+      authorName: user.displayName || "局內搭子", // <--- 替換成這行
       createdAt: serverTimestamp(),
     });
   };
