@@ -1,10 +1,15 @@
 "use client";
 
-import { useState } from "react";
+import { useState, use } from "react"; // 引入 React 的 use Hook
 import { MessageSquare, Calendar, Receipt, FileText, BarChart2 } from "lucide-react";
 import ChatBox from "@/components/room/ChatBox";
 
-export default function RoomDetail({ params }: { params: { id: string } }) {
+// 1. 將 params 修改為 Promise 類型以符合 Next.js 15+ / 16 規範
+export default function RoomDetail({ params }: { params: Promise<{ id: string }> }) {
+  // 2. 使用 React 的 use() 來拆解 Promise 中的 params
+  const resolvedParams = use(params);
+  const roomId = resolvedParams.id;
+
   const [activeTab, setActiveTab] = useState<"chat" | "memo" | "vote" | "schedule" | "bill">("chat");
 
   const tabs = [
@@ -48,9 +53,9 @@ export default function RoomDetail({ params }: { params: { id: string } }) {
         })}
       </div>
 
-      {/* 動態內容區塊 */}
+      {/* 動態內容區塊 - 傳入解構後的 roomId */}
       <div className="flex-1 overflow-hidden bg-surface rounded-xl border border-border flex flex-col">
-        {activeTab === "chat" && <ChatBox roomId={params.id} />}
+        {activeTab === "chat" && <ChatBox roomId={roomId} />}
         {activeTab === "schedule" && <div className="p-4 text-center text-secondary">空擋比對系統開發中...</div>}
         {activeTab === "bill" && <div className="p-4 text-center text-secondary">分帳系統開發中...</div>}
         {activeTab === "vote" && <div className="p-4 text-center text-secondary">投票系統開發中...</div>}
