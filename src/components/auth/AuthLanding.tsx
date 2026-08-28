@@ -125,7 +125,7 @@ export default function AuthLanding() {
           局內 InCircle
         </h1>
         <p className="text-secondary text-sm mt-3 leading-relaxed">
-          同頻約局，極簡體驗。<br />找到對的人，輕鬆組局與分帳。
+          同頻約局。<br />找到對的人，輕鬆組局與分帳。
         </p>
       </div>
 
