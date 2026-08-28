@@ -12,7 +12,10 @@ import {
   Edit3, 
   Key, 
   Copy, 
-  Check 
+  Check,
+  Calendar,
+  Sparkles,
+  Heart
 } from "lucide-react";
 import Link from "next/link";
 import { useAuthStore } from "@/store/useAuthStore";
@@ -22,11 +25,22 @@ import { doc, getDoc } from "firebase/firestore";
 import EditProfileModal from "@/components/profile/EditProfileModal";
 
 interface UserProfileData {
+  displayName?: string;
+  photoURL?: string;
   rating?: number;
   meetupsCount?: number;
   bio?: string;
   role?: string;
   personalInviteCode?: string;
+  interests?: string[];
+  dob?: string;
+  dobPrivacy?: "full" | "month_day" | "private";
+  age?: number;
+  agePrivacy?: boolean;
+  zodiac?: string;
+  zodiacPrivacy?: boolean;
+  mbti?: string;
+  mbtiPrivacy?: boolean;
 }
 
 export default function ProfilePage() {
@@ -42,28 +56,40 @@ export default function ProfilePage() {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [copied, setCopied] = useState(false);
 
-  useEffect(() => {
-    async function fetchUserProfile() {
-      if (!user) return;
-      try {
-        const userDoc = await getDoc(doc(db, "users", user.uid));
-        if (userDoc.exists()) {
-          const data = userDoc.data();
-          setProfile({
-            rating: data.rating ?? 5.0,
-            meetupsCount: data.meetupsCount ?? 0,
-            bio: data.bio || "這個搭子很懶，還沒填寫個人簡介。",
-            role: data.role || "user",
-            personalInviteCode: data.personalInviteCode || "",
-          });
-        }
-      } catch (err) {
-        console.error("讀取用戶資料失敗:", err);
-      } finally {
-        setIsFetching(false);
+  // 讀取 Firestore 中的最新個人名片資訊
+  const fetchUserProfile = async () => {
+    if (!user) return;
+    try {
+      const userDoc = await getDoc(doc(db, "users", user.uid));
+      if (userDoc.exists()) {
+        const data = userDoc.data();
+        setProfile({
+          displayName: data.displayName || user.displayName || "局內搭子",
+          photoURL: data.photoURL || user.photoURL || "",
+          rating: data.rating ?? 5.0,
+          meetupsCount: data.meetupsCount ?? 0,
+          bio: data.bio || "這個搭子很懶，還沒填寫個人簡介。",
+          role: data.role || "user",
+          personalInviteCode: data.personalInviteCode || "",
+          interests: data.interests || [],
+          dob: data.dob || "",
+          dobPrivacy: data.dobPrivacy || "full",
+          age: data.age ?? 0,
+          agePrivacy: data.agePrivacy ?? true,
+          zodiac: data.zodiac || "",
+          zodiacPrivacy: data.zodiacPrivacy ?? true,
+          mbti: data.mbti || "",
+          mbtiPrivacy: data.mbtiPrivacy ?? true,
+        });
       }
+    } catch (err) {
+      console.error("讀取用戶資料失敗:", err);
+    } finally {
+      setIsFetching(false);
     }
+  };
 
+  useEffect(() => {
     fetchUserProfile();
   }, [user]);
 
@@ -86,19 +112,33 @@ export default function ProfilePage() {
     }
   };
 
+  // 格式化生日顯示邏輯 (根據隱私設定)
+  const renderFormattedDob = () => {
+    if (!profile.dob || profile.dobPrivacy === "private") return null;
+    const [year, month, day] = profile.dob.split("-");
+    if (profile.dobPrivacy === "month_day") {
+      return `${month}月${day}日`;
+    }
+    return `${year}年${month}月${day}日`;
+  };
+
   if (!user) return null;
+
+  const displayPhoto = profile.photoURL || user.photoURL;
+  const formattedDob = renderFormattedDob();
 
   return (
     <div className="space-y-6 pb-24">
       {/* 頂部個人名片卡片 */}
-      <div className="bg-surface border border-border rounded-2xl p-5 shadow-minimal">
-        <div className="flex items-center gap-4">
-          {/* 大頭貼 */}
-          <div className="relative w-16 h-16 rounded-2xl bg-background border border-border flex items-center justify-center overflow-hidden shrink-0">
-            {user.photoURL ? (
+      <div className="bg-surface border border-border rounded-2xl p-5 shadow-minimal space-y-4">
+        
+        <div className="flex items-start gap-4">
+          {/* 大頭貼 ICON */}
+          <div className="relative w-16 h-16 rounded-2xl bg-background border border-border flex items-center justify-center overflow-hidden shrink-0 shadow-minimal">
+            {displayPhoto ? (
               <img 
-                src={user.photoURL} 
-                alt={user.displayName || "User"} 
+                src={displayPhoto} 
+                alt={profile.displayName || "User"} 
                 className="w-full h-full object-cover"
               />
             ) : (
@@ -106,11 +146,11 @@ export default function ProfilePage() {
             )}
           </div>
 
-          {/* 姓名與信譽徽章 */}
+          {/* 姓名與核心屬性 */}
           <div className="flex-1 min-w-0">
             <div className="flex items-center justify-between">
               <h2 className="text-lg font-bold text-primary truncate">
-                {user.displayName || "局內搭子"}
+                {profile.displayName || user.displayName || "局內搭子"}
               </h2>
               <button
                 onClick={() => setIsEditModalOpen(true)}
@@ -120,11 +160,12 @@ export default function ProfilePage() {
                 <Edit3 size={16} />
               </button>
             </div>
+
             <p className="text-xs text-secondary truncate mt-0.5">
               {user.email}
             </p>
 
-            {/* 信譽評分條 */}
+            {/* 信譽評分與組局數 */}
             <div className="flex items-center gap-3 mt-2">
               <div className="flex items-center gap-1 bg-background px-2 py-0.5 rounded-md border border-border">
                 <Star size={12} className="text-primary fill-primary" />
@@ -139,14 +180,60 @@ export default function ProfilePage() {
           </div>
         </div>
 
+        {/* 屬性標籤區塊 (MBTI, 星座, 歲數, 生日) */}
+        <div className="flex flex-wrap items-center gap-1.5 pt-1">
+          {profile.mbti && profile.mbtiPrivacy && (
+            <span className="bg-primary/10 text-primary border border-primary/20 px-2 py-0.5 rounded-md text-[10px] font-bold flex items-center gap-1">
+              <Sparkles size={10} /> {profile.mbti}
+            </span>
+          )}
+
+          {profile.zodiac && profile.zodiacPrivacy && (
+            <span className="bg-background border border-border text-secondary px-2 py-0.5 rounded-md text-[10px] font-medium">
+              {profile.zodiac}
+            </span>
+          )}
+
+          {profile.agePrivacy && profile.age && profile.age > 0 ? (
+            <span className="bg-background border border-border text-secondary px-2 py-0.5 rounded-md text-[10px] font-medium">
+              {profile.age} 歲
+            </span>
+          ) : null}
+
+          {formattedDob && (
+            <span className="bg-background border border-border text-secondary px-2 py-0.5 rounded-md text-[10px] font-medium flex items-center gap-1">
+              <Calendar size={10} /> {formattedDob}
+            </span>
+          )}
+        </div>
+
+        {/* 興趣標籤 */}
+        {profile.interests && profile.interests.length > 0 && (
+          <div className="pt-2 border-t border-border/60">
+            <p className="text-[10px] text-muted mb-1 flex items-center gap-1 font-medium">
+              <Heart size={10} /> 個人興趣標籤
+            </p>
+            <div className="flex flex-wrap gap-1.5">
+              {profile.interests.map((interest, idx) => (
+                <span
+                  key={idx}
+                  className="bg-background border border-border text-primary px-2 py-0.5 rounded-lg text-[10px] font-medium"
+                >
+                  #{interest}
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* 個人簡介 */}
-        <p className="text-xs text-secondary mt-4 pt-3 border-t border-border leading-relaxed">
+        <p className="text-xs text-secondary pt-2 border-t border-border leading-relaxed">
           {profile.bio}
         </p>
 
         {/* 我的專屬邀請碼卡片 */}
         {profile.personalInviteCode && (
-          <div className="mt-4 pt-3 border-t border-border flex items-center justify-between bg-background rounded-xl p-3 border">
+          <div className="mt-2 pt-3 border-t border-border flex items-center justify-between bg-background rounded-xl p-3 border">
             <div className="flex items-center gap-2">
               <Key size={14} className="text-primary" />
               <div>
@@ -165,7 +252,7 @@ export default function ProfilePage() {
         )}
       </div>
 
-      {/* 功能選單區塊 (與截圖選項一致) */}
+      {/* 功能選單區塊 */}
       <div className="bg-surface border border-border rounded-2xl overflow-hidden shadow-minimal">
         {/* 社交與好友 */}
         <Link
@@ -218,7 +305,7 @@ export default function ProfilePage() {
           <ChevronRight size={16} className="text-muted" />
         </Link>
 
-        {/* 管理員專屬入口 (依據角色動態顯示) */}
+        {/* 管理員專屬入口 */}
         {profile.role === "admin" && (
           <Link
             href="/admin/invite-codes"
@@ -252,10 +339,10 @@ export default function ProfilePage() {
         <EditProfileModal
           currentDisplayName={user.displayName || "局內搭子"}
           currentBio={profile.bio || ""}
-          currentPhotoURL={user.photoURL}
+          currentPhotoURL={displayPhoto}
           onClose={() => setIsEditModalOpen(false)}
-          onSaveSuccess={(updatedName, updatedBio, updatedPhoto) => {
-            setProfile((prev) => ({ ...prev, bio: updatedBio }));
+          onSaveSuccess={() => {
+            fetchUserProfile(); // 儲存成功後即時刷頁面
           }}
         />
       )}

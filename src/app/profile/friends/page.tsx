@@ -12,7 +12,8 @@ import {
   UserX, 
   Clock, 
   UserCheck, 
-  MessageSquare 
+  MessageSquare,
+  Sparkles
 } from "lucide-react";
 import Link from "next/link";
 import { useAuthStore } from "@/store/useAuthStore";
@@ -29,12 +30,15 @@ import {
   arrayRemove 
 } from "firebase/firestore";
 import DirectMessageModal from "@/components/chat/DirectMessageModal";
+import UserProfileModal from "@/components/profile/UserProfileModal";
 
 interface FriendUser {
   uid: string;
   displayName: string;
   photoURL?: string;
   bio?: string;
+  mbti?: string;
+  zodiac?: string;
   personalInviteCode?: string;
 }
 
@@ -47,8 +51,9 @@ export default function FriendsPage() {
   const [blocked, setBlocked] = useState<FriendUser[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // 私訊 Modal 狀態
+  // 彈窗 Modal 狀態
   const [chatFriend, setChatFriend] = useState<FriendUser | null>(null);
+  const [selectedProfileUid, setSelectedProfileUid] = useState<string | null>(null);
 
   // 搜尋與新增好友 Modal
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -231,7 +236,7 @@ export default function FriendsPage() {
           </Link>
           <div>
             <h1 className="text-xl font-bold text-primary">社交與好友</h1>
-            <p className="text-xs text-secondary mt-0.5">組局搭子圈與私訊互動</p>
+            <p className="text-xs text-secondary mt-0.5">組局搭子圈與名片互動</p>
           </div>
         </div>
 
@@ -297,9 +302,12 @@ export default function FriendsPage() {
             friends.map((friend) => (
               <div
                 key={friend.uid}
-                className="bg-surface border border-border rounded-2xl p-3 flex items-center justify-between shadow-minimal"
+                className="bg-surface border border-border rounded-2xl p-3 flex items-center justify-between shadow-minimal hover:border-primary/40 transition-colors"
               >
-                <div className="flex items-center gap-3">
+                <div
+                  onClick={() => setSelectedProfileUid(friend.uid)}
+                  className="flex items-center gap-3 cursor-pointer flex-1 min-w-0 pr-2"
+                >
                   <div className="w-10 h-10 rounded-xl bg-background border border-border flex items-center justify-center overflow-hidden shrink-0">
                     {friend.photoURL ? (
                       <img src={friend.photoURL} alt={friend.displayName} className="w-full h-full object-cover" />
@@ -307,15 +315,22 @@ export default function FriendsPage() {
                       <Users size={18} className="text-secondary" />
                     )}
                   </div>
-                  <div>
-                    <h4 className="text-xs font-bold text-primary">{friend.displayName}</h4>
-                    <p className="text-[10px] text-muted truncate max-w-[140px] mt-0.5">
-                      {friend.bio || "無個人簡介"}
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-1.5">
+                      <h4 className="text-xs font-bold text-primary truncate">{friend.displayName}</h4>
+                      {friend.mbti && (
+                        <span className="text-[9px] bg-primary/10 text-primary px-1.5 py-0.2 rounded font-bold shrink-0">
+                          {friend.mbti}
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-[10px] text-muted truncate mt-0.5">
+                      {friend.bio || "點擊查看詳細搭子名片"}
                     </p>
                   </div>
                 </div>
 
-                <div className="flex items-center gap-1">
+                <div className="flex items-center gap-1 shrink-0">
                   <button
                     onClick={() => setChatFriend(friend)}
                     className="p-2 text-primary hover:bg-background border border-border rounded-xl transition-colors flex items-center gap-1 text-xs"
@@ -351,7 +366,10 @@ export default function FriendsPage() {
                 key={req.uid}
                 className="bg-surface border border-border rounded-2xl p-3 flex items-center justify-between shadow-minimal"
               >
-                <div className="flex items-center gap-3">
+                <div
+                  onClick={() => setSelectedProfileUid(req.uid)}
+                  className="flex items-center gap-3 cursor-pointer flex-1 min-w-0 pr-2"
+                >
                   <div className="w-10 h-10 rounded-xl bg-background border border-border flex items-center justify-center overflow-hidden shrink-0">
                     {req.photoURL ? (
                       <img src={req.photoURL} alt={req.displayName} className="w-full h-full object-cover" />
@@ -361,11 +379,11 @@ export default function FriendsPage() {
                   </div>
                   <div>
                     <h4 className="text-xs font-bold text-primary">{req.displayName}</h4>
-                    <p className="text-[10px] text-muted mt-0.5">請求加入你的搭子圈</p>
+                    <p className="text-[10px] text-muted mt-0.5">請求加入你的搭子圈 · 點擊名片</p>
                   </div>
                 </div>
 
-                <div className="flex items-center gap-1.5">
+                <div className="flex items-center gap-1.5 shrink-0">
                   <button
                     onClick={() => handleAcceptRequest(req.uid)}
                     className="p-2 bg-primary text-surface rounded-xl hover:opacity-90 transition-opacity"
@@ -425,6 +443,15 @@ export default function FriendsPage() {
         </div>
       )}
 
+      {/* 好友名片 Modal */}
+      {selectedProfileUid && (
+        <UserProfileModal
+          userId={selectedProfileUid}
+          onClose={() => setSelectedProfileUid(null)}
+          onOpenChat={(targetUser) => setChatFriend(targetUser as FriendUser)}
+        />
+      )}
+
       {/* 私訊對話 Modal */}
       {chatFriend && (
         <DirectMessageModal
@@ -473,7 +500,10 @@ export default function FriendsPage() {
             {/* 搜尋結果 */}
             {searchResult && (
               <div className="bg-background border border-border rounded-xl p-3 flex items-center justify-between">
-                <div className="flex items-center gap-2.5">
+                <div
+                  onClick={() => setSelectedProfileUid(searchResult.uid)}
+                  className="flex items-center gap-2.5 cursor-pointer flex-1 min-w-0 pr-2"
+                >
                   <div className="w-8 h-8 rounded-lg bg-surface border border-border flex items-center justify-center overflow-hidden shrink-0">
                     {searchResult.photoURL ? (
                       <img src={searchResult.photoURL} alt="" className="w-full h-full object-cover" />
@@ -481,8 +511,8 @@ export default function FriendsPage() {
                       <Users size={14} className="text-secondary" />
                     )}
                   </div>
-                  <div>
-                    <p className="text-xs font-bold text-primary">{searchResult.displayName}</p>
+                  <div className="min-w-0">
+                    <p className="text-xs font-bold text-primary truncate">{searchResult.displayName}</p>
                     <p className="text-[10px] text-muted font-mono">{searchResult.personalInviteCode}</p>
                   </div>
                 </div>
@@ -490,7 +520,7 @@ export default function FriendsPage() {
                 <button
                   onClick={() => handleSendRequest(searchResult.uid)}
                   disabled={requestSent}
-                  className="bg-primary text-surface px-3 py-1.5 rounded-lg text-xs font-medium disabled:opacity-50 flex items-center gap-1"
+                  className="bg-primary text-surface px-3 py-1.5 rounded-lg text-xs font-medium disabled:opacity-50 flex items-center gap-1 shrink-0"
                 >
                   {requestSent ? (
                     <>
