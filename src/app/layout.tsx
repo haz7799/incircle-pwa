@@ -19,7 +19,12 @@ export const viewport: Viewport = {
 export const metadata: Metadata = {
   title: "局內 InCircle - 同頻約局 PWA",
   description: "尋找同頻搭子，輕鬆組局、記帳與投票。",
-  manifest: "/manifest.json", // 後續建立 PWA 設定時會用到
+  manifest: "/manifest.json",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "局內",
+  },
 };
 
 export default function RootLayout({
