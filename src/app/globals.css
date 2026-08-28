@@ -4,14 +4,12 @@
 
 @layer base {
   body {
-    /* 直接寫入色碼，避免 Tailwind 編譯器解析自訂類別失敗 */
     background-color: #f5f5f5;
     color: #171717;
     -webkit-tap-highlight-color: transparent;
   }
 }
 
-/* 針對 PWA 隱藏滾動條但保留滾動功能的優化 */
 .no-scrollbar::-webkit-scrollbar {
   display: none;
 }
